@@ -181,8 +181,8 @@ var _ = Describe("ClusterUpgrader", func() {
 				)
 
 				ok, err := EnsureExtraUpgradeWorkers(mockKubeClient, config, mockScalerClient, mockDrainStrategyBuilder, mockMetricsClient, mockMaintClient, mockCVClient, mockEMClient, upgradeConfig, mockMachineryClient, []ac.AvailabilityChecker{mockAC}, logger)
-				Expect(err).To(HaveOccurred())
-				Expect(ok).To(BeFalse())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ok).To(BeTrue())
 			})
 		})
 		Context("When capacity reservation is disabled", func() {

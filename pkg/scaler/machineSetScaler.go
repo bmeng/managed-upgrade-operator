@@ -3,6 +3,7 @@ package scaler
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -154,6 +155,12 @@ func (s *machineSetScaler) EnsureScaleUpNodes(c client.Client, timeOut time.Dura
 
 // EnsureScaleDownNodes will remove extra MachineSets and report when the nodes are removed.
 func (s *machineSetScaler) EnsureScaleDownNodes(c client.Client, nds drain.NodeDrainStrategy, logger logr.Logger) (bool, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("stacktrace from panic: \n" + string(debug.Stack()))
+		}
+	}()
+
 	upgradeMachinesets := &machineapi.MachineSetList{}
 
 	err := c.List(context.TODO(), upgradeMachinesets, []client.ListOption{
