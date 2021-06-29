@@ -262,6 +262,12 @@ func NotSelectorFromSet(ls NotMatchingLabels) labels.Selector {
 }
 
 func getExtraUpgradeNodes(c client.Client) (*corev1.NodeList, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("stacktrace from panic: \n" + string(debug.Stack()))
+		}
+	}()
+
 	nodes := &corev1.NodeList{}
 	err := c.List(context.TODO(), nodes)
 	if err != nil {
@@ -278,9 +284,11 @@ func getExtraUpgradeNodes(c client.Client) (*corev1.NodeList, error) {
 
 	extraUpgradeNodes := &corev1.NodeList{}
 	for _, machine := range machines.Items {
-		for _, node := range nodes.Items {
-			if node.Name == machine.Status.NodeRef.Name {
-				extraUpgradeNodes.Items = append(extraUpgradeNodes.Items, node)
+		if *machine.Status.Phase == "Running" {
+			for _, node := range nodes.Items {
+				if node.Name == machine.Status.NodeRef.Name {
+					extraUpgradeNodes.Items = append(extraUpgradeNodes.Items, node)
+				}
 			}
 		}
 	}

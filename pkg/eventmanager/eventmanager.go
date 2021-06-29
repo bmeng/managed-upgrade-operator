@@ -28,7 +28,8 @@ const (
 	// UPGRADE_EXTDEPCHECK_DELAY_DESC describes the upgrade external dependency check delay
 	UPGRADE_EXTDEPCHECK_DELAY_DESC = "Cluster upgrade to version %s is experiencing a delay as an external dependency of the upgrade is currently unavailable. The upgrade will continue to retry. This is an informational notification and no action is required by you."
 	// UPGRADE_SCALE_DELAY_DESC describes the upgrade scaling delayed
-	UPGRADE_SCALE_DELAY_DESC = "Cluster upgrade to version %s is experiencing a delay attempting to scale up an additional worker node. The upgrade will continue to retry. This is an informational notification and no action is required by you."
+	UPGRADE_SCALE_DELAY_DESC      = "Cluster upgrade to version %s is experiencing a delay attempting to scale up an additional worker node. The upgrade will continue to retry. This is an informational notification and no action is required by you."
+	UPGRADE_SCALE_DELAY_SKIP_DESC = "PLACEHOLDER_TBD"
 )
 
 // EventManager enables implementation of an EventManager
@@ -198,6 +199,15 @@ func createDelayedDescription(uc *v1alpha1.UpgradeConfig) string {
 		}
 	}
 
+	scaleSkipped := false
+	for _, condition := range history.Conditions {
+		if condition.IsTrue() {
+			if condition.Message == "ScaleUpExtraNodes skipped" {
+				scaleSkipped = true
+			}
+		}
+	}
+
 	// No incomplete condition? Just return default
 	if !foundDelayedCondition {
 		return description
@@ -209,7 +219,11 @@ func createDelayedDescription(uc *v1alpha1.UpgradeConfig) string {
 	case v1alpha1.ExtDepAvailabilityCheck:
 		description = fmt.Sprintf(UPGRADE_EXTDEPCHECK_DELAY_DESC, uc.Spec.Desired.Version)
 	case v1alpha1.UpgradeScaleUpExtraNodes:
-		description = fmt.Sprintf(UPGRADE_SCALE_DELAY_DESC, uc.Spec.Desired.Version)
+		if scaleSkipped {
+			description = fmt.Sprintf(UPGRADE_SCALE_DELAY_SKIP_DESC, uc.Spec.Desired.Version)
+		} else {
+			description = fmt.Sprintf(UPGRADE_SCALE_DELAY_DESC, uc.Spec.Desired.Version)
+		}
 	}
 
 	return description

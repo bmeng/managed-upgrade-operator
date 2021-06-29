@@ -31,11 +31,11 @@ var (
 		upgradev1alpha1.ExtDepAvailabilityCheck,
 		upgradev1alpha1.UpgradeScaleUpExtraNodes,
 		upgradev1alpha1.ControlPlaneMaintWindow,
-		upgradev1alpha1.CommenceUpgrade,
-		upgradev1alpha1.ControlPlaneUpgraded,
+		//		upgradev1alpha1.CommenceUpgrade,
+		//		upgradev1alpha1.ControlPlaneUpgraded,
 		upgradev1alpha1.RemoveControlPlaneMaintWindow,
 		upgradev1alpha1.WorkersMaintWindow,
-		upgradev1alpha1.AllWorkerNodesUpgraded,
+		//		upgradev1alpha1.AllWorkerNodesUpgraded,
 		upgradev1alpha1.RemoveExtraScaledNodes,
 		upgradev1alpha1.RemoveMaintWindow,
 		upgradev1alpha1.PostClusterHealthCheck,
@@ -71,21 +71,21 @@ func NewClient(c client.Client, cfm configmanager.ConfigManager, mc metrics.Metr
 	}
 
 	steps = map[upgradev1alpha1.UpgradeConditionType]UpgradeStep{
-		upgradev1alpha1.SendStartedNotification:       SendStartedNotification,
-		upgradev1alpha1.UpgradeDelayedCheck:           UpgradeDelayedCheck,
-		upgradev1alpha1.UpgradePreHealthCheck:         PreClusterHealthCheck,
-		upgradev1alpha1.ExtDepAvailabilityCheck:       ExternalDependencyAvailabilityCheck,
-		upgradev1alpha1.UpgradeScaleUpExtraNodes:      EnsureExtraUpgradeWorkers,
-		upgradev1alpha1.ControlPlaneMaintWindow:       CreateControlPlaneMaintWindow,
-		upgradev1alpha1.CommenceUpgrade:               CommenceUpgrade,
-		upgradev1alpha1.ControlPlaneUpgraded:          ControlPlaneUpgraded,
+		upgradev1alpha1.SendStartedNotification:  SendStartedNotification,
+		upgradev1alpha1.UpgradeDelayedCheck:      UpgradeDelayedCheck,
+		upgradev1alpha1.UpgradePreHealthCheck:    PreClusterHealthCheck,
+		upgradev1alpha1.ExtDepAvailabilityCheck:  ExternalDependencyAvailabilityCheck,
+		upgradev1alpha1.UpgradeScaleUpExtraNodes: EnsureExtraUpgradeWorkers,
+		upgradev1alpha1.ControlPlaneMaintWindow:  CreateControlPlaneMaintWindow,
+		//	upgradev1alpha1.CommenceUpgrade:               CommenceUpgrade,
+		//	upgradev1alpha1.ControlPlaneUpgraded:          ControlPlaneUpgraded,
 		upgradev1alpha1.RemoveControlPlaneMaintWindow: RemoveControlPlaneMaintWindow,
 		upgradev1alpha1.WorkersMaintWindow:            CreateWorkerMaintWindow,
-		upgradev1alpha1.AllWorkerNodesUpgraded:        AllWorkersUpgraded,
-		upgradev1alpha1.RemoveExtraScaledNodes:        RemoveExtraScaledNodes,
-		upgradev1alpha1.RemoveMaintWindow:             RemoveMaintWindow,
-		upgradev1alpha1.PostClusterHealthCheck:        PostClusterHealthCheck,
-		upgradev1alpha1.SendCompletedNotification:     SendCompletedNotification,
+		//	upgradev1alpha1.AllWorkerNodesUpgraded:        AllWorkersUpgraded,
+		upgradev1alpha1.RemoveExtraScaledNodes:    RemoveExtraScaledNodes,
+		upgradev1alpha1.RemoveMaintWindow:         RemoveMaintWindow,
+		upgradev1alpha1.PostClusterHealthCheck:    PostClusterHealthCheck,
+		upgradev1alpha1.SendCompletedNotification: SendCompletedNotification,
 	}
 
 	return &osdClusterUpgrader{
@@ -164,8 +164,8 @@ func EnsureExtraUpgradeWorkers(c client.Client, cfg *osdUpgradeConfig, s scaler.
 	if err != nil {
 		if scaler.IsScaleTimeOutError(err) {
 			metricsClient.UpdateMetricScalingFailed(upgradeConfig.Name)
-			// Send notificaiton
-			return true, nil
+			// Send notification
+			return true, fmt.Errorf("SKIP_SCALE")
 		}
 		return false, err
 	}
@@ -481,6 +481,8 @@ func shouldFailUpgrade(cvClient cv.ClusterVersion, cfg *osdUpgradeConfig, upgrad
 func (cu osdClusterUpgrader) UpgradeCluster(upgradeConfig *upgradev1alpha1.UpgradeConfig, logger logr.Logger) (upgradev1alpha1.UpgradePhase, *upgradev1alpha1.UpgradeCondition, error) {
 	logger.Info("Upgrading cluster")
 
+	var condition *upgradev1alpha1.UpgradeCondition
+
 	// Determine if the upgrade has reached conditions warranting failure
 	cancelUpgrade, _ := shouldFailUpgrade(cu.cvClient, cu.cfg, upgradeConfig)
 	if cancelUpgrade {
@@ -491,12 +493,12 @@ func (cu osdClusterUpgrader) UpgradeCluster(upgradeConfig *upgradev1alpha1.Upgra
 		// If we couldn't notify of failure - do nothing, return the existing phase, try again next time
 		if err != nil {
 			h := upgradeConfig.Status.History.GetHistory(upgradeConfig.Spec.Desired.Version)
-			condition := newUpgradeCondition("Upgrade failed", "FailedUpgrade notification sent", "FailedUpgrade", corev1.ConditionFalse)
+			condition = newUpgradeCondition("Upgrade failed", "FailedUpgrade notification sent", "FailedUpgrade", corev1.ConditionFalse)
 			return h.Phase, condition, nil
 		}
 
 		logger.Info("Failing upgrade")
-		condition := newUpgradeCondition("Upgrade failed", "FailedUpgrade notification sent", "FailedUpgrade", corev1.ConditionTrue)
+		condition = newUpgradeCondition("Upgrade failed", "FailedUpgrade notification sent", "FailedUpgrade", corev1.ConditionTrue)
 		return upgradev1alpha1.UpgradePhaseFailed, condition, nil
 	}
 
@@ -505,20 +507,30 @@ func (cu osdClusterUpgrader) UpgradeCluster(upgradeConfig *upgradev1alpha1.Upgra
 		logger.Info(fmt.Sprintf("Performing %s", key))
 		result, err := cu.Steps[key](cu.client, cu.cfg, cu.scaler, cu.drainstrategyBuilder, cu.metrics, cu.maintenance, cu.cvClient, cu.notifier, upgradeConfig, cu.machinery, cu.availabilityCheckers, logger)
 
+		fmt.Println(result)
+		fmt.Println(err)
+
+		if key == upgradev1alpha1.UpgradeScaleUpExtraNodes && err != nil && err.Error() == "SKIP_SCALE" {
+			logger.Info(fmt.Sprintf("skip the step %s and continue", key))
+			condition = newUpgradeCondition(fmt.Sprintf("%s skipped", key), fmt.Sprintf("%s skipped", key), key, corev1.ConditionTrue)
+			continue
+		}
 		if err != nil {
 			logger.Error(err, fmt.Sprintf("Error when %s", key))
-			condition := newUpgradeCondition(fmt.Sprintf("%s not done", key), err.Error(), key, corev1.ConditionFalse)
+			condition = newUpgradeCondition(fmt.Sprintf("%s not done", key), err.Error(), key, corev1.ConditionFalse)
 			return upgradev1alpha1.UpgradePhaseUpgrading, condition, err
 		}
 		if !result {
 			logger.Info(fmt.Sprintf("%s not done, skip following steps", key))
-			condition := newUpgradeCondition(fmt.Sprintf("%s not done", key), fmt.Sprintf("%s still in progress", key), key, corev1.ConditionFalse)
+			condition = newUpgradeCondition(fmt.Sprintf("%s not done", key), fmt.Sprintf("%s still in progress", key), key, corev1.ConditionFalse)
 			return upgradev1alpha1.UpgradePhaseUpgrading, condition, nil
 		}
 	}
 
 	key := cu.Ordering[len(cu.Ordering)-1]
-	condition := newUpgradeCondition(fmt.Sprintf("%s done", key), fmt.Sprintf("%s is completed", key), key, corev1.ConditionTrue)
+	if condition.Status == "" {
+		condition = newUpgradeCondition(fmt.Sprintf("%s done", key), fmt.Sprintf("%s is completed", key), key, corev1.ConditionTrue)
+	}
 	return upgradev1alpha1.UpgradePhaseUpgraded, condition, nil
 }
 
