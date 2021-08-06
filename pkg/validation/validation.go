@@ -204,6 +204,8 @@ func fetchImageVersion(image string) (string, error) {
 	}
 
 	body, err := runHTTP(manifesturl.String())
+	bodyString := string(body)
+	fmt.Println(bodyString)
 	if len(body) == 0 {
 		return "", fmt.Errorf("failed to fetch image manifest digest: %s needs to be a valid release image", image)
 	}
@@ -222,6 +224,7 @@ func fetchImageVersion(image string) (string, error) {
 	}
 
 	resbody, err := runHTTP(bloburl.String())
+	fmt.Println(string(resbody))
 	if len(resbody) == 0 {
 		return "", fmt.Errorf("failed to fetch blobs for image manifest digest: %s needs to be a valid release image", image)
 	}

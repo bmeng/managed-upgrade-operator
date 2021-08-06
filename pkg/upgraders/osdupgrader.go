@@ -68,7 +68,7 @@ func NewOSDUpgrader(c client.Client, cfm configmanager.ConfigManager, mc metrics
 		upgradesteps.Action(string(upgradev1alpha1.ExtDepAvailabilityCheck), ou.ExternalDependencyAvailabilityCheck),
 		upgradesteps.Action(string(upgradev1alpha1.UpgradeScaleUpExtraNodes), ou.EnsureExtraUpgradeWorkers),
 		upgradesteps.Action(string(upgradev1alpha1.ControlPlaneMaintWindow), ou.CreateControlPlaneMaintWindow),
-		upgradesteps.Action(string(upgradev1alpha1.CommenceUpgrade), ou.CommenceUpgrade),
+		//		upgradesteps.Action(string(upgradev1alpha1.CommenceUpgrade), ou.CommenceUpgrade),
 		upgradesteps.Action(string(upgradev1alpha1.ControlPlaneUpgraded), ou.ControlPlaneUpgraded),
 		upgradesteps.Action(string(upgradev1alpha1.RemoveControlPlaneMaintWindow), ou.RemoveControlPlaneMaintWindow),
 		upgradesteps.Action(string(upgradev1alpha1.WorkersMaintWindow), ou.CreateWorkerMaintWindow),

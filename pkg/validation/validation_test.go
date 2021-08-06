@@ -1,18 +1,22 @@
 package validation
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/blang/semver"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/ghttp"
+
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	configv1 "github.com/openshift/api/config/v1"
 	upgradev1alpha1 "github.com/openshift/managed-upgrade-operator/pkg/apis/upgrade/v1alpha1"
 	testStructs "github.com/openshift/managed-upgrade-operator/util/mocks/structs"
 
+	img "github.com/openshift/library-go/pkg/image/reference"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -31,6 +35,8 @@ var _ = Describe("Validation of UpgradeConfig CR", func() {
 		testClusterVersion    *configv1.ClusterVersion
 		testLogger            logr.Logger
 		testClient            client.Client
+		testImage             img.DockerImageReference
+		testServer            *ghttp.Server
 	)
 
 	BeforeEach(func() {
@@ -82,6 +88,13 @@ var _ = Describe("Validation of UpgradeConfig CR", func() {
 					},
 				},
 			},
+		}
+		testImage = img.DockerImageReference{
+			Registry:  "test-registry",
+			Namespace: "test-namespace",
+			Name:      "test-image",
+			Tag:       "test-tag",
+			ID:        "aaabbbccc",
 		}
 	})
 
@@ -174,6 +187,54 @@ var _ = Describe("Validation of UpgradeConfig CR", func() {
 			It("Default value is returned", func() {
 				result := getUpstreamURL(testClusterVersion)
 				Expect(result).Should(Equal(defaultUpstreamServer))
+			})
+		})
+	})
+	Context("Validating desired image", func() {
+		Context("When image is specified", func() {
+			It("Should fail if cannot fetch the image info", func() {
+				testUpgradeConfig.Spec.Desired.Image = "example.com/test/image@sha256:654321"
+				result, err := fetchImageVersion(testUpgradeConfig.Spec.Desired.Image)
+				Expect(result).Should(BeEmpty())
+				Expect(err).Should(HaveOccurred())
+			})
+		})
+	})
+	Context("Validating using image or version to upgrade", func() {
+		Context("Should validate image when it is provided", func() {
+			It("Should pass validation if image is correct", func() {
+				testUpgradeConfig.Spec.Desired.Image = "example.com/test/image@sha256:654321"
+				result, err := testValidator.IsValidUpgradeConfig(testClient, testUpgradeConfig, testClusterVersion, testLogger)
+			})
+			It("Should fail validation if the image is incorrect", func() {
+
+			})
+		})
+		Context("Should validate both channel and version when image is missing", func() {
+			It("Should pass if version and image are valid", func() {
+
+			})
+			It("Should fail if either version or channel is invalid", func() {
+
+			})
+		})
+	})
+	Context("Validating image", func() {
+		BeforeEach(func() {
+			httpResponse := []byte
+			testServer := ghttp.NewServer()
+			testServer.AppendHandlers(
+				ghttp.CombineHandlers(
+					ghttp.RespondWith(http.StatusOK, httpResponse),
+				),
+			)
+		})
+		AfterEach(func() {
+			testServer.Close()
+		})
+		Context("test1", func() {
+			It("test1", func() {
+				response, err := runHTTP(testServer.URL())
 			})
 		})
 	})

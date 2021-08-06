@@ -14,8 +14,8 @@ require (
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/jarcoal/httpmock v1.0.8
 	github.com/jpillora/backoff v1.0.0
-	github.com/onsi/ginkgo v1.14.1
-	github.com/onsi/gomega v1.10.2
+	github.com/onsi/ginkgo v1.16.4
+	github.com/onsi/gomega v1.15.0
 	github.com/openshift/api v3.9.1-0.20190424152011-77b8897ec79a+incompatible
 	github.com/openshift/cluster-version-operator v3.11.1-0.20190629164025-08cac1c02538+incompatible
 	github.com/openshift/library-go v0.0.0-20200831114015-2ab0c61c15de
@@ -28,7 +28,7 @@ require (
 	github.com/prometheus/common v0.10.0
 	github.com/sykesm/zap-logfmt v0.0.4
 	go.uber.org/zap v1.15.0
-	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.20.2
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v12.0.0+incompatible
